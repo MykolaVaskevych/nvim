@@ -4,6 +4,7 @@ return {
     -- Ensure devicetree parser is installed for ZMK keymaps
     vim.list_extend(opts.ensure_installed, {
       "devicetree",
+      "html",
     })
   end,
 }
