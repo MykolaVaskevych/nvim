@@ -3,3 +3,5 @@
 -- Add any additional keymaps here
 
 vim.keymap.set("i", "jj", "<ESC>", { silent = true })
+vim.keymap.del("n", "<leader>l")
+vim.keymap.del("n", "<leader>L")
