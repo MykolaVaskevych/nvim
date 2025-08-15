@@ -10,6 +10,9 @@ return {
       { "<leader>la", group = "random level", icon = { icon = "󰒲", color = "purple" } },
       { "<leader>lc", group = "code", icon = { icon = "", color = "cyan" } },
       { "<leader>lv", group = "view", icon = { icon = "", color = "yellow" } },
+
+      -- code print (silicon) group
+      { "<leader>cp", group = "code print", icon = { icon = "📸", color = "green" } },
     },
   },
 }
