@@ -22,50 +22,87 @@ return {
       mode = { "n", "v" },
       desc = "Save code screenshot as file",
     },
-    -- Save to file AND copy to clipboard
-    {
-      "<leader>cpc",
-      function()
-        require("nvim-silicon").shoot()
-      end,
-      mode = { "n", "v" },
-      desc = "Save and copy code screenshot",
-    },
-    -- Save, copy, and preview image
+    -- Save, copy, and open in default viewer
     {
       "<leader>cpp",
       function()
         local silicon = require("nvim-silicon")
+        -- Generate output path once
+        local output_path = silicon.options.output
+        if type(output_path) == "function" then
+          output_path = output_path()
+        end
+
+        if not output_path then
+          return
+        end
+
+        -- Set output path explicitly and shoot
+        silicon.options.output = output_path
         silicon.shoot()
 
-        -- Wait for file creation then open
-        vim.defer_fn(function()
-          local output_path = silicon.options.output
-          if type(output_path) == "function" then
-            output_path = output_path()
-          end
-
-          if output_path then
-            -- Get just the filename
-            local filename = vim.fn.fnamemodify(output_path, ":t")
-            -- Try different methods to open the image
-            -- Method 1: Use Windows Photos app (Windows 10/11)
-            local cmd = 'powershell.exe -Command "Start-Process \\"ms-photos:\\" -ArgumentList \\"C:\\Users\\bebag\\Pictures\\'
-              .. filename
-              .. '\\""'
-            local result = vim.fn.system(cmd)
-
-            -- If Photos app fails, try method 2: Use mspaint as fallback
-            if result ~= "" then
-              vim.fn.system('cmd.exe /c mspaint "C:\\Users\\bebag\\Pictures\\' .. filename .. '"')
-            end
-
-            vim.notify("Opening " .. filename, vim.log.levels.INFO)
-          end
-        end, 500)
+        -- Open in default viewer
+        local filename = vim.fn.fnamemodify(output_path, ":t")
+        vim.fn.system('cmd.exe /c start "" "C:\\Users\\bebag\\Pictures\\' .. filename .. '"')
       end,
       mode = { "n", "v" },
-      desc = "Preview code screenshot",
+      desc = "Save, copy, and open screenshot in default viewer",
+    },
+    -- Save, copy, and open in Paint
+    {
+      "<leader>cpd",
+      function()
+        local silicon = require("nvim-silicon")
+        -- Generate output path once
+        local output_path = silicon.options.output
+        if type(output_path) == "function" then
+          output_path = output_path()
+        end
+
+        if not output_path then
+          return
+        end
+
+        -- Set output path explicitly and shoot
+        silicon.options.output = output_path
+        silicon.shoot()
+
+        -- Open in Paint
+        local filename = vim.fn.fnamemodify(output_path, ":t")
+        vim.fn.system('cmd.exe /c mspaint "C:\\Users\\bebag\\Pictures\\' .. filename .. '"')
+      end,
+      mode = { "n", "v" },
+      desc = "Save, copy, and open screenshot in Paint",
+    },
+    -- Save, copy, and open in Photos app
+    {
+      "<leader>cpo",
+      function()
+        local silicon = require("nvim-silicon")
+        -- Generate output path once
+        local output_path = silicon.options.output
+        if type(output_path) == "function" then
+          output_path = output_path()
+        end
+
+        if not output_path then
+          return
+        end
+
+        -- Set output path explicitly and shoot
+        silicon.options.output = output_path
+        silicon.shoot()
+
+        -- Open in Photos app
+        local filename = vim.fn.fnamemodify(output_path, ":t")
+        vim.fn.system(
+          'powershell.exe -Command "Start-Process \\"ms-photos:\\" -ArgumentList \\"C:\\Users\\bebag\\Pictures\\'
+            .. filename
+            .. '\\""'
+        )
+      end,
+      mode = { "n", "v" },
+      desc = "Save, copy, and open screenshot in Photos app",
     },
     -- Screenshot from yanked/clipboard content
     {
@@ -74,7 +111,6 @@ return {
         -- Get content from clipboard/register
         local content = vim.fn.getreg('"') -- Default register (last yanked)
         if not content or content == "" then
-          vim.notify("No content in register", vim.log.levels.WARN)
           return
         end
 
@@ -100,7 +136,7 @@ return {
         lang = language_map[lang] or lang or "text"
 
         -- Generate output path
-        local output_path = vim.fn.expand("~/Pictures/code_" .. os.date("!%Y%m%d_%H%M%S") .. ".png")
+        local output_path = "/mnt/c/Users/bebag/Pictures/code_" .. os.date("!%Y%m%d_%H%M%S") .. ".png"
 
         -- Run silicon on the temp file
         local cmd = {
@@ -122,15 +158,9 @@ return {
         if is_wsl then
           -- Also copy to clipboard
           vim.fn.system({ "silicon", "--language", lang, "--to-clipboard", temp_file })
-        end
-
-        -- Notify user
-        vim.notify("Screenshot created from yanked content: " .. output_path, vim.log.levels.INFO)
-
-        -- Open preview
-        if is_wsl then
-          local win_path = vim.fn.system("wslpath -w '" .. output_path .. "'"):gsub("\n", "")
-          vim.fn.system('explorer.exe "' .. win_path .. '"')
+          -- Open in default viewer
+          local filename = vim.fn.fnamemodify(output_path, ":t")
+          vim.fn.system('cmd.exe /c start "" "C:\\Users\\bebag\\Pictures\\' .. filename .. '"')
         end
       end,
       mode = { "n" },
