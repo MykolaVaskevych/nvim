@@ -38,7 +38,7 @@ return {
         local silicon = require("nvim-silicon")
         silicon.shoot()
 
-        -- Wait for file creation then open with explorer.exe
+        -- Wait for file creation then open
         vim.defer_fn(function()
           local output_path = silicon.options.output
           if type(output_path) == "function" then
@@ -46,19 +46,95 @@ return {
           end
 
           if output_path then
-            local is_wsl = vim.fn.system("uname -r"):match("WSL") or vim.fn.system("uname -r"):match("Microsoft")
-            if is_wsl then
-              -- Use explorer.exe to open the image (the only method that works)
-              vim.fn.system('explorer.exe "' .. output_path .. '"')
-            else
-              local open_cmd = vim.fn.has("mac") == 1 and "open" or "xdg-open"
-              vim.fn.jobstart({ open_cmd, output_path }, { detach = true })
+            -- Get just the filename
+            local filename = vim.fn.fnamemodify(output_path, ":t")
+            -- Try different methods to open the image
+            -- Method 1: Use Windows Photos app (Windows 10/11)
+            local cmd = 'powershell.exe -Command "Start-Process \\"ms-photos:\\" -ArgumentList \\"C:\\Users\\bebag\\Pictures\\'
+              .. filename
+              .. '\\""'
+            local result = vim.fn.system(cmd)
+
+            -- If Photos app fails, try method 2: Use mspaint as fallback
+            if result ~= "" then
+              vim.fn.system('cmd.exe /c mspaint "C:\\Users\\bebag\\Pictures\\' .. filename .. '"')
             end
+
+            vim.notify("Opening " .. filename, vim.log.levels.INFO)
           end
         end, 500)
       end,
       mode = { "n", "v" },
       desc = "Preview code screenshot",
+    },
+    -- Screenshot from yanked/clipboard content
+    {
+      "<leader>cpb",
+      function()
+        -- Get content from clipboard/register
+        local content = vim.fn.getreg('"') -- Default register (last yanked)
+        if not content or content == "" then
+          vim.notify("No content in register", vim.log.levels.WARN)
+          return
+        end
+
+        -- Create temp file with the yanked content
+        local temp_file = vim.fn.tempname() .. ".txt"
+        local file = io.open(temp_file, "w")
+        file:write(content)
+        file:close()
+
+        -- Detect language from current buffer or prompt
+        local lang = vim.bo.filetype
+        local language_map = {
+          bash = "sh",
+          sh = "sh",
+          zsh = "sh",
+          fish = "sh",
+          javascriptreact = "jsx",
+          typescriptreact = "tsx",
+          javascript = "js",
+          typescript = "ts",
+          markdown = "md",
+        }
+        lang = language_map[lang] or lang or "text"
+
+        -- Generate output path
+        local output_path = vim.fn.expand("~/Pictures/code_" .. os.date("!%Y%m%d_%H%M%S") .. ".png")
+
+        -- Run silicon on the temp file
+        local cmd = {
+          "silicon",
+          "--language",
+          lang,
+          "--output",
+          output_path,
+          temp_file,
+        }
+
+        vim.fn.system(cmd)
+
+        -- Clean up temp file
+        os.remove(temp_file)
+
+        -- Copy to clipboard if in WSL
+        local is_wsl = vim.fn.system("uname -r"):match("WSL") or vim.fn.system("uname -r"):match("Microsoft")
+        if is_wsl then
+          -- Also copy to clipboard
+          vim.fn.system({ "silicon", "--language", lang, "--to-clipboard", temp_file })
+        end
+
+        -- Notify user
+        vim.notify("Screenshot created from yanked content: " .. output_path, vim.log.levels.INFO)
+
+        -- Open preview
+        if is_wsl then
+          local win_path = vim.fn.system("wslpath -w '" .. output_path .. "'"):gsub("\n", "")
+          vim.fn.system('explorer.exe "' .. win_path .. '"')
+        end
+      end,
+      mode = { "n" },
+      desc = "Screenshot from buffer/yanked content",
     },
   },
   opts = {
@@ -80,13 +156,9 @@ return {
       return map[ft] or ft
     end,
 
-    -- Output to Windows Pictures folder
+    -- Save directly to Windows Pictures folder via /mnt/c (hardcoded for reliability)
     output = function()
-      -- Get Windows user home from environment
-      local win_user = vim.fn.system("cmd.exe /c echo %USERPROFILE%"):gsub("\r\n", ""):gsub("\n", "")
-      -- Convert to WSL path
-      local pictures_path = vim.fn.system("wslpath '" .. win_user .. "\\Pictures'"):gsub("\n", "")
-      return pictures_path .. "/code_" .. os.date("!%Y%m%d_%H%M%S") .. ".png"
+      return "/mnt/c/Users/bebag/Pictures/code_" .. os.date("!%Y%m%d_%H%M%S") .. ".png"
     end,
 
     -- Auto-detect WSL for clipboard
