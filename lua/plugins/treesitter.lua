@@ -5,6 +5,9 @@ return {
     vim.list_extend(opts.ensure_installed, {
       "devicetree",
       "html",
+      "typescript",
+      "tsx",
+      "javascript",
     })
   end,
 }
